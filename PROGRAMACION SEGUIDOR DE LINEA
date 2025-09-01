@@ -1,0 +1,124 @@
+//JOSHUA FLORES ECUAROBOTICS 2025 FINAL FUNCIONA
+//INCLUIMOS LA LIBRERIA DE LOS SENSORES QTR
+#include <QTRSensors.h>
+//DECLARAMOS ENTRADAS PARA EL PUENTE H AL ARDUINO
+int PWMA=3;//3
+int AIN2=4;//4
+int AIN1=5;//5
+int PWMB=10;//10
+int BIN2=9;//9
+int BIN1=8;//8
+int STANDBY  = 7;
+///DECLARAMOS SALIDA PARA SEÑALIZAR EL CALIBRADO
+int LED = 13;
+//VARIABLES DE ALMACENAMIENTO
+int P=0;
+int I=0;
+int D=0;
+int LAST=0;
+float vel;
+//DECLARAMOS VELOCIDAD DEL ROBOT OJO LLEGA HASTA 255
+int VelMax = 255;  //230
+//////////////////////////////////////////////////////////////////////////////////////////
+//
+#define NUM_SENSORS   8     // number of sensors used
+#define TIMEOUT       2500  // waits for 2500 microseconds for sensor outputs to go low
+#define EMITTER_PIN   13     // emitter is controlled by digital pin 2
+
+// DECLARAMOS ENTRAS PARA LOS SENSORES
+QTRSensorsRC qtra((unsigned char[]) {A0, A1, A2, A3, A4, A5, A6, A7},
+  NUM_SENSORS, TIMEOUT, EMITTER_PIN); 
+unsigned int sensorValues[NUM_SENSORS];
+
+unsigned int position=0;
+
+void setup()
+{
+  pinMode(PWMA,OUTPUT);
+  pinMode(AIN1,OUTPUT);
+  pinMode(AIN2,OUTPUT);
+  pinMode(PWMB,OUTPUT);
+  pinMode(BIN1,OUTPUT);
+  pinMode(BIN2,OUTPUT);
+  pinMode(LED,OUTPUT);
+  pinMode(STANDBY,OUTPUT);
+
+  delay(500);
+  //prendemos el led (LED, HIGH);
+   for (int j = 0; j <250; j++)  
+ {                                 
+    digitalWrite(LED, HIGH);  
+    delay(20);
+    qtra.calibrate();            // reads all sensors 10 times at 2.5 ms per six sensors (i.e. ~25 ms per call)
+    digitalWrite(LED, LOW);   // turn off LED
+    delay(20);                       
+}
+
+ delay(2000);
+//} 
+ //APAGAMOS EL LED 
+ digitalWrite(LED, LOW); 
+ //INICIAMOS EL ARANQUE DE LOS MOTOS                                                                   
+ digitalWrite(AIN1,LOW);
+ digitalWrite(AIN2,HIGH);
+ 
+ digitalWrite(BIN1,HIGH);
+ digitalWrite(BIN2,LOW);
+ 
+ analogWrite(PWMA,0);
+ analogWrite(PWMB,0);
+ //HABILITAMOS EL PUENTE H PARA EL FUNCIONAMIENTO DEL MISMO
+ digitalWrite(STANDBY, HIGH);
+}
+
+
+void loop()
+{
+//LEEMOS LA SEÑAL DE LOS SENSORES
+  qtra.read(sensorValues);
+  position = qtra.readLine(sensorValues, QTR_EMITTERS_ON, 0);
+                                                                                        
+ P = ((position)-(3500)); /// ERROR   
+/////FRENOS////
+if(P<-3500){
+ analogWrite(PWMA,150); // VELOCIDAD PARA EL MOTOR DERECHO  150  120 
+  analogWrite(PWMB,220); //  VELOCIDAD PARA EL MOTOR IZQUIERDO  230  180
+ digitalWrite(AIN1,LOW);   ///FRENTE
+ digitalWrite(AIN2,HIGH);
+ digitalWrite(BIN1,LOW);  ///RETROCEDE
+ digitalWrite(BIN2,HIGH);
+
+} else if (P>3500){
+ analogWrite(PWMA,220); // VELOCIDAD PARA EL MOTOR DERECHO  230
+ analogWrite(PWMB,150); //  VELOCIDAD PARA EL MOTOR IZQUIERDO 150
+ digitalWrite(AIN1,HIGH);   ///RETROCEDE
+ digitalWrite(AIN2,LOW);
+ digitalWrite(BIN1,HIGH);  ///FRENTE
+ digitalWrite(BIN2,LOW);
+}
+/////////////////////////
+  else{
+ D= (P - LAST); /// ERROR MENOS EL ERROR ANTERIOR , DERIVATIVO
+ I=(P+ LAST); //INTEGRAL 0 
+   
+vel=(P*0.3)+(D*10.0)+(I*0.008);
+//P=1.8    D=25    I=0.005
+//P=0.5   D=20    I=0.0008
+//P=0.03   D=1.20    I=0.0008
+///VELOCIDAMAX =VELOCIDAD PUNTA , V
+
+    if(vel >VelMax) vel=VelMax;
+    if(vel<-VelMax) vel=-VelMax;
+
+  analogWrite(PWMA,VelMax-vel); // VELOCIDAD PARA EL MOTOR DERECHO
+  analogWrite(PWMB,VelMax+vel); //  VELOCIDAD PARA EL MOTOR IZQUIERDO
+
+ digitalWrite(AIN1,LOW);   ///FRENTE
+ digitalWrite(AIN2,HIGH);
+ digitalWrite(BIN1,HIGH);  ///FRENTE
+ digitalWrite(BIN2,LOW);
+ 
+LAST=P;
+  }
+
+}////BUCLE INFINITO
